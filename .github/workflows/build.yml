@@ -23,7 +23,7 @@ jobs:
       with:
         xcode-version: ${{ env.XCODE_VERSION }}
 
-        - name: 📦 Install build dependencies
+      - name: 📦 Install build dependencies
       run: |
         brew install make dpkg ldid git
         rm -rf $HOME/theos || true
