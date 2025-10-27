@@ -1,4 +1,4 @@
-name: Build HPJY-HUD (.tipa / .deb via Xcode)
+name: Build TOX-HUD-和平 (.tipa / .deb via Xcode)
 
 on:
   push:
@@ -11,7 +11,7 @@ on:
 
 env:
   XCODE_VERSION: '15.1'
-  PROJECT_NAME: 'HPJY-HUD'   # 👈 غيّر هذا فقط إذا اختلف اسم مشروعك الفعلي في Xcode
+  PROJECT_NAME: 'TOX-HUD-和平'
 
 jobs:
   build:
