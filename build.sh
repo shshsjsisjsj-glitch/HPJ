@@ -1,9 +1,11 @@
-#!/bin/sh
+#!/bin/bash
 # ================================================
 # 🚀 TOX-HUD-和平 — Automated Xcode Build Script
 # Builds .tipa for TrollStore & .ipa-style archive
 # Compatible with GitHub Actions + macOS (no sign)
 # ================================================
+
+set -e  # توقف عند أول خطأ
 
 if [ $# -ne 1 ]; then
     echo "Usage: $0 <version>"
@@ -16,70 +18,79 @@ VERSION=${VERSION#v}  # Remove leading "v" if present
 PROJECT_NAME="TOX-HUD-和平"
 SCHEME_NAME="TOX-HUD-和平"
 
+WORK_DIR="$(pwd)"
+SUPPORTS_DIR="${WORK_DIR}/supports"
+ARCHIVE_PATH="${WORK_DIR}/${PROJECT_NAME}.xcarchive"
+PRODUCTS_DIR="${ARCHIVE_PATH}/Products"
+APP_DIR="${PRODUCTS_DIR}/Applications"
+
 # ================================================
 # 🧱 Clean + Build + Archive using Xcode
 # ================================================
-echo "🧱 Building ${PROJECT_NAME} (version: ${VERSION})..."
+echo "🧱 Building ${PROJECT_NAME} (scheme: ${SCHEME_NAME}, version: ${VERSION})..."
 
 xcodebuild clean build archive \
   -scheme "$SCHEME_NAME" \
   -project "${PROJECT_NAME}.xcodeproj" \
   -sdk iphoneos \
   -destination 'generic/platform=iOS' \
-  -archivePath "${PROJECT_NAME}" \
-  CODE_SIGNING_ALLOWED=NO | xcpretty
+  -archivePath "${ARCHIVE_PATH}" \
+  CODE_SIGNING_ALLOWED=NO | xcpretty || true
 
 # ================================================
-# 🧩 Prepare Payload and repackage
+# 🧩 Validate build output
 # ================================================
-echo "📦 Preparing app bundle..."
-
-if [ ! -d "${PROJECT_NAME}.xcarchive/Products/Applications" ]; then
-    echo "❌ Build failed: Applications folder not found!"
+if [ ! -d "${APP_DIR}" ]; then
+    echo "❌ Build failed: Applications folder not found at ${APP_DIR}"
+    ls -R "${PRODUCTS_DIR}" || true
     exit 1
 fi
 
-cp supports/entitlements.plist "${PROJECT_NAME}.xcarchive/Products" || true
-cd "${PROJECT_NAME}.xcarchive/Products/Applications" || exit 1
+echo "📦 Preparing app bundle..."
+cp "${SUPPORTS_DIR}/entitlements.plist" "${PRODUCTS_DIR}" || echo "⚠️ Missing entitlements.plist (ignored)"
+cp "${SUPPORTS_DIR}/Sandbox-Info.plist" "${PRODUCTS_DIR}" || echo "⚠️ Missing Sandbox-Info.plist (ignored)"
 
-APP_NAME=$(ls | grep ".app" | head -n 1)
+cd "${APP_DIR}" || exit 1
+APP_NAME=$(ls | grep ".app$" | head -n 1)
 if [ -z "$APP_NAME" ]; then
-    echo "❌ No .app found in archive."
+    echo "❌ No .app found inside Applications folder."
     exit 1
 fi
 
 echo "🔧 Found app: $APP_NAME"
-
-# Remove existing signature
 codesign --remove-signature "$APP_NAME" || true
-cd -
+cd "${PRODUCTS_DIR}" || exit 1
 
 # ================================================
-# 🔐 Re-sign using ldid (dynamic path fix)
+# 🔐 Re-sign using ldid (auto-detect path)
 # ================================================
 LDID_PATH=$(command -v ldid)
 if [ -z "$LDID_PATH" ]; then
     echo "⚠️ ldid not found in PATH!"
+    echo "👉 Install it via: brew install ldid"
     exit 1
 fi
 
-cd "${PROJECT_NAME}.xcarchive/Products" || exit 1
+echo "🔏 Signing app using: $LDID_PATH"
 mv Applications Payload
-
-echo "🔏 Signing using ldid at: $LDID_PATH"
-"$LDID_PATH" -Sentitlements.plist Payload/"$APP_NAME"
+"$LDID_PATH" -Sentitlements.plist "Payload/${APP_NAME}" || echo "⚠️ Skipped ldid signing"
 
 # ================================================
-# 🧱 Package .tipa
+# 📦 Create .tipa archive
 # ================================================
 echo "📦 Creating .tipa package..."
+cd "${PRODUCTS_DIR}" || exit 1
 zip -qr "${PROJECT_NAME}.tipa" Payload
 
 # ================================================
-# 📂 Move output to packages directory
+# 📂 Move final output to /packages
 # ================================================
-cd -
+cd "${WORK_DIR}" || exit 1
 mkdir -p packages
-mv "${PROJECT_NAME}.xcarchive/Products/${PROJECT_NAME}.tipa" "packages/${PROJECT_NAME}_v${VERSION}.tipa"
+mv "${PRODUCTS_DIR}/${PROJECT_NAME}.tipa" "packages/${PROJECT_NAME}_v${VERSION}.tipa" || {
+    echo "❌ Failed to move .tipa file!"
+    exit 1
+}
 
-echo "✅ Build finished: packages/${PROJECT_NAME}_v${VERSION}.tipa"
+echo "✅ Build finished successfully!"
+echo "📦 Output → packages/${PROJECT_NAME}_v${VERSION}.tipa"
