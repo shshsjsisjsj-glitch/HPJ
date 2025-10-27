@@ -306,7 +306,7 @@
 				A569328C2B7DF5B700E70CF7 /* Sandbox-Info.plist */,
 			);
 			name = supports;
-			path = "../HUD ESP 2/supports";
+			path = "supports";
 			sourceTree = "<group>";
 		};
 		A56932902B7DF68700E70CF7 /* en.lproj */ = {
