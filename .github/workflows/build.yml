@@ -52,7 +52,17 @@ jobs:
         run: |
           if [ -f "build.sh" ]; then
             echo "🛠 Building ${{ env.PROJECT_NAME }}..."
+            # ✅ إصلاح مسار ldid داخل build.sh
+            sed -i '' 's|/Users/zaizai/Desktop/ldid|/usr/local/bin/ldid|g' build.sh
+            chmod +x build.sh
+
+            # ✅ ضمان وجود مجلد packages لتخزين المخرجات
+            mkdir -p packages
+
+            # ✅ تنفيذ عملية البناء
             ./build.sh v${{ env.VERSION }}
+
+            echo "✅ Build completed successfully."
           else
             echo "❌ build.sh not found!"
             exit 1
