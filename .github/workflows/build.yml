@@ -10,12 +10,13 @@ on:
   workflow_dispatch:
 
 env:
-  XCODE_VERSION: '15.1'
-  PROJECT_NAME: 'TOX-HUD-和平'
+  XCODE_VERSION: "15.1"
+  PROJECT_NAME: "TOX-HUD-和平"
 
 jobs:
   build:
     runs-on: macos-13
+    timeout-minutes: 30
 
     steps:
       - name: 🧩 Checkout repository
@@ -51,10 +52,11 @@ jobs:
       - name: 🔍 Detect Xcode Scheme Automatically
         id: detect_scheme
         run: |
-          echo "🔍 Detecting scheme from project: ${{ env.PROJECT_NAME }}.xcodeproj"
+          echo "🔍 Detecting scheme from project: '${{ env.PROJECT_NAME }}.xcodeproj'"
           SCHEME=$(xcodebuild -list -project "${{ env.PROJECT_NAME }}.xcodeproj" | awk '/Schemes:/ {getline; print $1; exit}')
           if [ -z "$SCHEME" ]; then
             echo "❌ No scheme found in Xcode project!"
+            echo "💡 Make sure your .xcodeproj contains at least one shared scheme."
             exit 1
           fi
           echo "✅ Detected Scheme: $SCHEME"
@@ -62,19 +64,20 @@ jobs:
 
       - name: 🚀 Build .tipa using Xcode
         run: |
-          echo "🛠 Building ${{ env.PROJECT_NAME }} (scheme: ${{ env.SCHEME_NAME }})..."
+          echo "🛠 Building '${{ env.PROJECT_NAME }}' (scheme: ${{ env.SCHEME_NAME }})..."
 
-          # ✅ إصلاح مسار ldid داخل build.sh
-          sed -i '' "s|/Users/zaizai/Desktop/ldid|/usr/local/bin/ldid|g" build.sh
+          # ✅ إصلاح مسار ldid داخل build.sh (في حال كان مذكور بشكل ثابت)
+          if grep -q "/Users/zaizai/Desktop/ldid" build.sh; then
+            sed -i '' "s|/Users/zaizai/Desktop/ldid|/usr/local/bin/ldid|g" build.sh
+          fi
+
+          # ✅ تحديث اسم الـ scheme داخل build.sh
           sed -i '' "s|SCHEME_NAME=.*|SCHEME_NAME='${{ env.SCHEME_NAME }}'|g" build.sh
-          chmod +x build.sh
 
-          # ✅ إنشاء مجلد للحزم
+          chmod +x build.sh
           mkdir -p packages
 
-          # ✅ تشغيل البناء
           ./build.sh v${{ env.VERSION }}
-
           echo "✅ Build completed successfully."
 
       - name: 🧾 Fix DEBIAN permissions (optional)
@@ -89,19 +92,23 @@ jobs:
       - name: ☁️ Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.PROJECT_NAME }}_Packages
+          name: "${{ env.PROJECT_NAME }}_Packages"
           path: |
             packages/*.tipa
             packages/*.deb
+          if-no-files-found: warn
 
       - name: 🚀 Upload GitHub Release (if tagged)
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/v')
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          name: "Release v${{ env.VERSION }} — TOX-HUD-和平"
           body: |
-            🎯 ${{ env.PROJECT_NAME }} build v${{ env.VERSION }} completed successfully!
-            ✅ Built via Xcode + TrollStore workflow.
+            🎯 **${{ env.PROJECT_NAME }} v${{ env.VERSION }}**
+            ✅ Built automatically via GitHub Actions (Xcode 15.1)
+            - Includes TrollStore `.tipa` build
+            - Includes Jailbreak `.deb` (if available)
           generate_release_notes: true
           files: |
             packages/*.tipa
@@ -111,7 +118,7 @@ jobs:
         if: always()
         run: |
           echo "----------------------------------------"
-          echo "📦 Build Summary for ${{ env.PROJECT_NAME }}"
+          echo "📦 Build Summary for '${{ env.PROJECT_NAME }}'"
           echo "----------------------------------------"
           cd packages || exit 0
           if ls *.tipa >/dev/null 2>&1; then
