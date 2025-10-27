@@ -27,7 +27,10 @@ jobs:
       run: |
         brew install make dpkg ldid git swift
         rm -rf $HOME/theos || true
-        git clone --recursive https://github.com/kabiroberai/theos $HOME/theos
+        git clone --recursive --recurse-submodules -j8 https://github.com/kabiroberai/theos $HOME/theos
+        cd $HOME/theos
+        git submodule sync
+        git submodule update --init --recursive --jobs 8
         rm -rf $HOME/theos/sdks || true
         git clone https://github.com/theos/sdks $HOME/theos/sdks
         echo "THEOS=$HOME/theos" >> $GITHUB_ENV
