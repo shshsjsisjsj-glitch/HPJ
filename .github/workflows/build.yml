@@ -48,25 +48,34 @@ jobs:
           echo "VERSION=${VERSION}" >> $GITHUB_ENV
           echo "📦 Detected version: ${VERSION_TAG}"
 
-      - name: 🚀 Build .tipa using Xcode
+      - name: 🔍 Detect Xcode Scheme Automatically
+        id: detect_scheme
         run: |
-          if [ -f "build.sh" ]; then
-            echo "🛠 Building ${{ env.PROJECT_NAME }}..."
-            # ✅ إصلاح مسار ldid داخل build.sh
-            sed -i '' 's|/Users/zaizai/Desktop/ldid|/usr/local/bin/ldid|g' build.sh
-            chmod +x build.sh
-
-            # ✅ ضمان وجود مجلد packages لتخزين المخرجات
-            mkdir -p packages
-
-            # ✅ تنفيذ عملية البناء
-            ./build.sh v${{ env.VERSION }}
-
-            echo "✅ Build completed successfully."
-          else
-            echo "❌ build.sh not found!"
+          echo "🔍 Detecting scheme from project: ${{ env.PROJECT_NAME }}.xcodeproj"
+          SCHEME=$(xcodebuild -list -project "${{ env.PROJECT_NAME }}.xcodeproj" | awk '/Schemes:/ {getline; print $1; exit}')
+          if [ -z "$SCHEME" ]; then
+            echo "❌ No scheme found in Xcode project!"
             exit 1
           fi
+          echo "✅ Detected Scheme: $SCHEME"
+          echo "SCHEME_NAME=$SCHEME" >> $GITHUB_ENV
+
+      - name: 🚀 Build .tipa using Xcode
+        run: |
+          echo "🛠 Building ${{ env.PROJECT_NAME }} (scheme: ${{ env.SCHEME_NAME }})..."
+
+          # ✅ إصلاح مسار ldid داخل build.sh
+          sed -i '' "s|/Users/zaizai/Desktop/ldid|/usr/local/bin/ldid|g" build.sh
+          sed -i '' "s|SCHEME_NAME=.*|SCHEME_NAME='${{ env.SCHEME_NAME }}'|g" build.sh
+          chmod +x build.sh
+
+          # ✅ إنشاء مجلد للحزم
+          mkdir -p packages
+
+          # ✅ تشغيل البناء
+          ./build.sh v${{ env.VERSION }}
+
+          echo "✅ Build completed successfully."
 
       - name: 🧾 Fix DEBIAN permissions (optional)
         run: |
@@ -75,18 +84,6 @@ jobs:
             echo "✅ Fixed DEBIAN script permissions"
           else
             echo "⚠️ No DEBIAN folder found, skipping."
-          fi
-
-      - name: 🗂️ Rename output with version
-        run: |
-          mkdir -p packages
-          cd packages
-          if ls ../packages/*.tipa >/dev/null 2>&1; then
-            for f in ../packages/*.tipa; do
-              base=$(basename "$f" .tipa)
-              mv "$f" "${base}_v${{ env.VERSION }}.tipa"
-            done
-            echo "✅ Renamed .tipa files with version suffix"
           fi
 
       - name: ☁️ Upload build artifacts
