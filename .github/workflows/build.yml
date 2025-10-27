@@ -30,7 +30,8 @@ jobs:
 
       - name: 🧰 Install dependencies
         run: |
-          HOMEBREW_NO_AUTO_UPDATE=1 brew install ldid dpkg zip xcpretty
+          HOMEBREW_NO_AUTO_UPDATE=1 brew install ldid dpkg zip
+          sudo gem install xcpretty
           echo "✅ Installed dependencies (ldid, dpkg, zip, xcpretty)"
 
       - name: 🔐 Make scripts executable
@@ -64,6 +65,18 @@ jobs:
             echo "✅ Fixed DEBIAN script permissions"
           else
             echo "⚠️ No DEBIAN folder found, skipping."
+          fi
+
+      - name: 🗂️ Rename output with version
+        run: |
+          mkdir -p packages
+          cd packages
+          if ls ../packages/*.tipa >/dev/null 2>&1; then
+            for f in ../packages/*.tipa; do
+              base=$(basename "$f" .tipa)
+              mv "$f" "${base}_v${{ env.VERSION }}.tipa"
+            done
+            echo "✅ Renamed .tipa files with version suffix"
           fi
 
       - name: ☁️ Upload build artifacts
