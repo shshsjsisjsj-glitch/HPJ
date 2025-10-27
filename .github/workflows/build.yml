@@ -23,11 +23,11 @@ jobs:
       with:
         xcode-version: ${{ env.XCODE_VERSION }}
 
-    - name: 📦 Install build dependencies
+    - name: 📦 Install build dependencies (with Swift support)
       run: |
-        brew install make dpkg ldid git
+        brew install make dpkg ldid git swift
         rm -rf $HOME/theos || true
-        git clone --recursive https://github.com/theos/theos $HOME/theos
+        git clone --recursive https://github.com/kabiroberai/theos $HOME/theos
         rm -rf $HOME/theos/sdks || true
         git clone https://github.com/theos/sdks $HOME/theos/sdks
         echo "THEOS=$HOME/theos" >> $GITHUB_ENV
@@ -38,8 +38,9 @@ jobs:
         chmod +x ./build.sh || true
         chmod +x ./gen-control.sh || true
 
-    - name: 🏗️ Build HPJY-HUD
+    - name: 🏗️ Build HPJY-HUD (Swift + ObjC++)
       run: |
+        export THEOS_SWIFT_USE_PREBUILT=1
         make package FINALPACKAGE=1 \
           ARCHS="arm64 arm64e" \
           TARGET="iphone:clang:latest:${{ env.SDK_VERSION }}"
