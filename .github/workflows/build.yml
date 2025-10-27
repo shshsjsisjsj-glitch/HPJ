@@ -23,21 +23,15 @@ jobs:
       with:
         xcode-version: ${{ env.XCODE_VERSION }}
 
-    - name: 📦 Install build dependencies (Swift + HTTPS Submodules)
+    - name: 📦 Install build dependencies (no submodules fetch)
       run: |
         brew install make dpkg ldid git swift
         rm -rf $HOME/theos || true
-        # ✅ تحميل Theos (نسخة تدعم Swift)
-        git clone --recursive --recurse-submodules -j8 https://github.com/kabiroberai/theos $HOME/theos
-        cd $HOME/theos
-        # 💡 تصحيح روابط submodules القديمة (git:// → https://)
-        git config --global url."https://github.com/".insteadOf git://github.com/
-        git submodule sync
-        git submodule update --init --recursive --jobs 8 || true
-        # ✅ تحميل SDKs
+        # ✅ استخدم نسخة fork لا تحتوي rocketbootstrap أو LightMessaging
+        git clone --depth=1 https://github.com/halo-michael/theos $HOME/theos
+        # ✅ حمل SDKs فقط
         rm -rf $HOME/theos/sdks || true
         git clone https://github.com/theos/sdks $HOME/theos/sdks
-        # ✅ تهيئة بيئة المتغيرات
         echo "THEOS=$HOME/theos" >> $GITHUB_ENV
         echo "PATH=$HOME/theos/bin:$PATH" >> $GITHUB_ENV
 
